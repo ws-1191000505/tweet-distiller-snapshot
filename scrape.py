@@ -86,6 +86,14 @@ def slim_row(tweet: dict[str, Any], requested_handle: str) -> dict[str, Any]:
     }
 
 
+def is_original_tweet(tweet: dict[str, Any]) -> bool:
+    return not (
+        tweet.get("inReplyToTweetId")
+        or tweet.get("retweetedTweet")
+        or tweet.get("quotedTweet")
+    )
+
+
 def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as fh:
         for record in records:
@@ -228,6 +236,9 @@ async def run(args: argparse.Namespace) -> int:
             errors[handle] = f"{type(exc).__name__}: {exc}"
             print(f"@{handle}: failed: {errors[handle]}")
 
+    if args.original_only:
+        all_records = [record for record in all_records if is_original_tweet(record)]
+
     rows = [slim_row(record, str(record.get("_requested_handle") or "")) for record in all_records]
 
     write_jsonl(out_dir / "tweets.jsonl", all_records)
@@ -241,6 +252,7 @@ async def run(args: argparse.Namespace) -> int:
         "handles": handles,
         "limit_per_handle": args.limit,
         "include_replies": args.include_replies,
+        "original_only": args.original_only,
         "tweet_count": len(all_records),
         "user_count": len(users),
         "users": users,
@@ -258,6 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--handles", required=True, help="Comma/newline/space separated handles, without or with @.")
     parser.add_argument("--limit", type=int, default=3200, help="Maximum tweets per handle.")
     parser.add_argument("--include-replies", action="store_true", help="Use user_tweets_and_replies instead of user_tweets.")
+    parser.add_argument("--original-only", action="store_true", help="Exclude replies, retweets, and quote tweets from the exported files.")
     parser.add_argument("--output-dir", default="out", help="Directory for exported files.")
     parser.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
     return parser
