@@ -54,6 +54,7 @@ auth_token=你的值; ct0=你的值
 | `handles` | `sama,paulg` | 账号名，不需要 `@`，多个用逗号或换行分隔 |
 | `limit` | `3200` | 每个账号最多尝试抓取多少条 |
 | `include_replies` | `false` | 是否包含回复 |
+| `original_only` | `true` | 是否只导出原创推文；开启后会排除回复、转推和引用推文 |
 
 运行结束后，在 workflow run 页面下载 `tweet-distiller-snapshot` artifact。
 
@@ -85,7 +86,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 export TWS_COOKIES='auth_token=xxx; ct0=yyy'
-python scrape.py --handles sama --limit 20
+python scrape.py --handles sama --limit 20 --original-only
 ```
 
 Windows PowerShell：
@@ -95,5 +96,5 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 $env:TWS_COOKIES='auth_token=xxx; ct0=yyy'
-python scrape.py --handles sama --limit 20
+python scrape.py --handles sama --limit 20 --original-only
 ```
