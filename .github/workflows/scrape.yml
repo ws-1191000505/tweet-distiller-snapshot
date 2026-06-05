@@ -1,0 +1,65 @@
+name: Scrape X/Twitter snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      handles:
+        description: "X/Twitter handles, for example: sama,paulg"
+        required: true
+        type: string
+      limit:
+        description: "Maximum tweets per handle"
+        required: true
+        default: "3200"
+        type: string
+      include_replies:
+        description: "Include replies"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Scrape snapshot
+        env:
+          TWS_USERNAME: ${{ secrets.TWS_USERNAME }}
+          TWS_COOKIES: ${{ secrets.TWS_COOKIES }}
+          TWS_PROXY: ${{ secrets.TWS_PROXY }}
+          TWS_RAISE_WHEN_NO_ACCOUNT: "true"
+        run: |
+          args=()
+          if [ "${{ inputs.include_replies }}" = "true" ]; then
+            args+=(--include-replies)
+          fi
+
+          python scrape.py \
+            --handles "${{ inputs.handles }}" \
+            --limit "${{ inputs.limit }}" \
+            --output-dir out \
+            "${args[@]}"
+
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tweet-distiller-snapshot
+          path: out/
+          retention-days: 14
