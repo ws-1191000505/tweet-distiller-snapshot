@@ -17,6 +17,11 @@ on:
         required: true
         default: false
         type: boolean
+      original_only:
+        description: "Only export original tweets"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -49,6 +54,9 @@ jobs:
           args=()
           if [ "${{ inputs.include_replies }}" = "true" ]; then
             args+=(--include-replies)
+          fi
+          if [ "${{ inputs.original_only }}" = "true" ]; then
+            args+=(--original-only)
           fi
 
           python scrape.py \
