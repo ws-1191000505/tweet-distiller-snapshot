@@ -1,0 +1,87 @@
+name: Enrich research events
+
+on:
+  workflow_dispatch:
+    inputs:
+      handles:
+        description: "X/Twitter handles, comma-separated"
+        required: true
+        default: "aleabitoreddit"
+      limit:
+        description: "Maximum tweets per handle"
+        required: true
+        default: "3200"
+      include_replies:
+        description: "Include replies"
+        required: true
+        type: boolean
+        default: false
+      original_only:
+        description: "Keep only original tweets"
+        required: true
+        type: boolean
+        default: true
+      price_sleep_seconds:
+        description: "Sleep between Twelve Data requests"
+        required: true
+        default: "8"
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Scrape tweets
+        env:
+          TWS_COOKIES: ${{ secrets.TWS_COOKIES }}
+        run: |
+          args=(
+            --handles "${{ inputs.handles }}"
+            --limit "${{ inputs.limit }}"
+            --output-dir out
+          )
+          if [ "${{ inputs.include_replies }}" = "true" ]; then
+            args+=(--include-replies)
+          fi
+          if [ "${{ inputs.original_only }}" = "true" ]; then
+            args+=(--original-only)
+          fi
+          python scrape.py "${args[@]}"
+
+      - name: Package tweet snapshot
+        run: |
+          cd out
+          python -m zipfile -c ../tweet-distiller-snapshot.zip *
+
+      - name: Build research event database
+        run: python prepare_research_events.py tweet-distiller-snapshot.zip
+
+      - name: Enrich events with Twelve Data
+        env:
+          TWELVE_DATA_API_KEY: ${{ secrets.TWELVE_DATA_API_KEY }}
+        run: |
+          python enrich_research_events_twelvedata.py \
+            research_events/01_research_events.csv \
+            --sleep "${{ inputs.price_sleep_seconds }}"
+
+      - name: Upload enriched research artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: enriched-research-events
+          path: |
+            tweet-distiller-snapshot.zip
+            out/**
+            research_events/**
+          if-no-files-found: error
