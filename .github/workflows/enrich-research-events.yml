@@ -24,7 +24,7 @@ on:
       price_sleep_seconds:
         description: "Sleep between Twelve Data requests"
         required: true
-        default: "8"
+        default: "9"
 
 jobs:
   enrich:
