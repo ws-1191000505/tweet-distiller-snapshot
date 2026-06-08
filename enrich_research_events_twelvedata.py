@@ -16,6 +16,7 @@ import math
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -29,7 +30,7 @@ DEFAULT_INSTRUMENTS = {
     # First US/ADR batch.
     "NVDA": {"symbol": "NVDA", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "NVIDIA Corporation"},
     "LITE": {"symbol": "LITE", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Lumentum Holdings"},
-    "AAOI": {"symbol": "AAOI", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Applied Optoelectronics"},
+    "AAOI": {"symbol": "AAOI", "exchange": "NASDAQ", "mic_code": "XNMS", "country": "United States", "currency": "USD", "name": "Applied Optoelectronics"},
     "AXTI": {"symbol": "AXTI", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "AXT Inc"},
     "MSFT": {"symbol": "MSFT", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Microsoft"},
     "INTC": {"symbol": "INTC", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Intel"},
@@ -47,9 +48,9 @@ DEFAULT_INSTRUMENTS = {
     "SNDK": {"symbol": "SNDK", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Sandisk"},
     "JBL": {"symbol": "JBL", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Jabil"},
     # Added from Twelve Data /stocks discovery for high-frequency uncovered events.
-    "SIVE": {"symbol": "SIVE", "exchange": "OMX", "mic_code": "XSTO", "country": "Sweden", "currency": "SEK", "name": "Sivers Semiconductors AB (publ)"},
+    "SIVE": {"symbol": "SIVE", "exchange": "OMX", "mic_code": "XSTO", "country": "Sweden", "currency": "SEK", "name": "Sivers Semiconductors AB (publ)", "fallbacks": [{"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC"}]},
     "SIVEF": {"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC"},
-    "SOI": {"symbol": "SOI", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Soitec SA"},
+    "SOI": {"symbol": "SOI", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Soitec SA", "allow_symbol_only": "false", "fallbacks": [{"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"}]},
     "SLOIF": {"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"},
     "RPI": {"symbol": "RPI", "exchange": "LSE", "mic_code": "XLON", "country": "United Kingdom", "currency": "GBp", "name": "Raspberry Pi Holdings plc"},
     "TSEM": {"symbol": "TSEM", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Tower Semiconductor"},
@@ -64,7 +65,7 @@ DEFAULT_INSTRUMENTS = {
     "HOOD": {"symbol": "HOOD", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Robinhood Markets"},
     "IBKR": {"symbol": "IBKR", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Interactive Brokers"},
     "GFS": {"symbol": "GFS", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "GlobalFoundries"},
-    "LPK": {"symbol": "LPK", "exchange": "XETR", "mic_code": "XETR", "country": "Germany", "currency": "EUR", "name": "LPKF Laser & Electronics SE"},
+    "LPK": {"symbol": "LPK", "exchange": "XETR", "mic_code": "XETR", "country": "Germany", "currency": "EUR", "name": "LPKF Laser & Electronics SE", "allow_symbol_only": "false"},
     "ALRIB": {"symbol": "ALRIB", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Riber SA"},
     "HPS.A": {"symbol": "HPS.A", "exchange": "TSX", "mic_code": "XTSE", "country": "Canada", "currency": "CAD", "name": "Hammond Power Solutions"},
     "NVTS": {"symbol": "NVTS", "exchange": "NASDAQ", "mic_code": "XNMS", "country": "United States", "currency": "USD", "name": "Navitas Semiconductor"},
@@ -155,6 +156,42 @@ def instrument_for_ticker(ticker: str) -> dict[str, str]:
     return {"symbol": ticker, "name": "", "exchange": "", "mic_code": "", "country": "", "currency": ""}
 
 
+def public_instrument(instrument: dict[str, object]) -> dict[str, str]:
+    return {
+        key: str(value)
+        for key, value in instrument.items()
+        if key not in {"fallbacks", "allow_symbol_only"} and value
+    }
+
+
+def candidate_instruments(instrument: dict[str, object]) -> list[dict[str, str]]:
+    base = public_instrument(instrument)
+    candidates: list[dict[str, str]] = []
+
+    def add(candidate: dict[str, str]) -> None:
+        key = tuple(sorted(candidate.items()))
+        if candidate.get("symbol") and key not in {tuple(sorted(item.items())) for item in candidates}:
+            candidates.append(candidate)
+
+    add(base)
+    if base.get("symbol") and base.get("exchange"):
+        add({k: v for k, v in base.items() if k not in {"mic_code", "country"}})
+    if base.get("symbol") and base.get("mic_code"):
+        add({k: v for k, v in base.items() if k not in {"exchange", "country"}})
+    if str(instrument.get("allow_symbol_only", "true")).lower() != "false":
+        symbol_only = {k: v for k, v in base.items() if k in {"symbol", "name", "currency"}}
+        add(symbol_only)
+
+    fallbacks = instrument.get("fallbacks", [])
+    if isinstance(fallbacks, list):
+        for fallback in fallbacks:
+            if isinstance(fallback, dict):
+                for candidate in candidate_instruments(fallback):
+                    add(candidate)
+
+    return candidates
+
+
 def cache_name(value: str) -> str:
     return "".join(char if char.isalnum() or char in {"_", "-"} else "_" for char in value)
 
@@ -175,7 +212,7 @@ def twelve_data_url(instrument: dict[str, str], start: date, end: date, api_key:
     return "https://api.twelvedata.com/time_series?" + urllib.parse.urlencode(params)
 
 
-def fetch_bars(instrument: dict[str, str], start: date, end: date, api_key: str) -> tuple[list[Bar], str]:
+def fetch_bars_once(instrument: dict[str, str], start: date, end: date, api_key: str) -> tuple[list[Bar], str]:
     url = twelve_data_url(instrument, start, end, api_key)
     request = urllib.request.Request(
         url,
@@ -187,6 +224,13 @@ def fetch_bars(instrument: dict[str, str], start: date, end: date, api_key: str)
     try:
         with urllib.request.urlopen(request, timeout=45) as response:
             payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read().decode("utf-8", errors="replace")
+        except Exception:
+            body = ""
+        compact_body = body.replace("\n", " ")[:500]
+        return [], f"request_error:HTTPError:{exc.code}:{compact_body or exc.reason}"
     except Exception as exc:  # noqa: BLE001 - report network/API failures per symbol.
         return [], f"request_error:{type(exc).__name__}:{exc}"
 
@@ -232,6 +276,17 @@ def fetch_bars(instrument: dict[str, str], start: date, end: date, api_key: str)
         )
     bars.sort(key=lambda bar: bar.day)
     return bars, "ok" if bars else "no_parseable_bars"
+
+
+def fetch_bars(instrument: dict[str, object], start: date, end: date, api_key: str) -> tuple[list[Bar], str, dict[str, str]]:
+    statuses: list[str] = []
+    for candidate in candidate_instruments(instrument):
+        bars, status = fetch_bars_once(candidate, start, end, api_key)
+        label = f"{candidate.get('symbol')}:{candidate.get('exchange') or candidate.get('mic_code') or 'symbol_only'}"
+        statuses.append(f"{label}={status}")
+        if bars:
+            return bars, "ok" if status == "ok" else status, candidate
+    return [], " | ".join(statuses) if statuses else "no_candidates", public_instrument(instrument)
 
 
 def load_events(path: Path) -> list[dict[str, str]]:
@@ -294,12 +349,13 @@ def enrich_row(
     bars_by_symbol: dict[str, list[Bar]],
     benchmark_bars: list[Bar],
     instruments_by_ticker: dict[str, dict[str, str]],
+    used_instruments_by_ticker: dict[str, dict[str, str]],
 ) -> dict[str, object]:
     enriched: dict[str, object] = dict(row)
     symbol = row.get("ticker", "").strip().upper().lstrip("$")
     event_time = parse_event_time(row.get("published_at_utc", "") or row.get("published_at", ""))
     bars = bars_by_symbol.get(symbol, [])
-    instrument = instruments_by_ticker.get(symbol, instrument_for_ticker(symbol))
+    instrument = used_instruments_by_ticker.get(symbol) or instruments_by_ticker.get(symbol, instrument_for_ticker(symbol))
 
     for key in [
         "price_data_symbol",
@@ -421,6 +477,7 @@ def main() -> int:
 
     symbols_to_fetch = sorted(selected_symbols)
     bars_by_symbol: dict[str, list[Bar]] = {}
+    used_instruments_by_ticker: dict[str, dict[str, str]] = {}
     fetch_status: dict[str, str] = {}
     benchmark_instrument = instrument_for_ticker(args.benchmark.upper())
     fetch_plan = [(symbol, instruments_by_ticker[symbol]) for symbol in symbols_to_fetch]
@@ -430,15 +487,17 @@ def main() -> int:
         exchange = instrument.get("exchange", "")
         suffix = f" ({exchange})" if exchange else ""
         print(f"[{index}/{len(fetch_plan)}] Fetching {event_ticker} -> {source}{suffix} from {start} to {end}")
-        bars, status = fetch_bars(instrument, start, end, api_key)
+        bars, status, used_instrument = fetch_bars(instrument, start, end, api_key)
         bars_by_symbol[event_ticker] = bars
+        used_instruments_by_ticker[event_ticker] = used_instrument
         fetch_status[event_ticker] = status
         cache_path = cache_dir / f"{cache_name(event_ticker)}.json"
         cache_path.write_text(
             json.dumps(
                 {
                     "event_ticker": event_ticker,
-                    "instrument": instrument,
+                    "requested_instrument": public_instrument(instrument),
+                    "used_instrument": used_instrument,
                     "status": status,
                     "start": start.isoformat(),
                     "end": end.isoformat(),
@@ -454,7 +513,7 @@ def main() -> int:
 
     benchmark_bars = bars_by_symbol.get(args.benchmark.upper(), [])
     enriched_rows = [
-        enrich_row(row, bars_by_symbol, benchmark_bars, instruments_by_ticker)
+        enrich_row(row, bars_by_symbol, benchmark_bars, instruments_by_ticker, used_instruments_by_ticker)
         for row in events
         if row.get("ticker", "").strip().upper().lstrip("$") in selected_symbols
         and row.get("research_signal", "").strip().lower() in {"yes", "maybe"}
@@ -492,8 +551,12 @@ def main() -> int:
         "output_csv": str(out_dir / "01_research_events_enriched_twelvedata.csv"),
         "selected_symbols": sorted(selected_symbols),
         "selected_instruments": {
-            symbol: instruments_by_ticker[symbol]
+            symbol: public_instrument(instruments_by_ticker[symbol])
             for symbol in sorted(instruments_by_ticker)
+        },
+        "used_instruments": {
+            symbol: used_instruments_by_ticker[symbol]
+            for symbol in sorted(used_instruments_by_ticker)
         },
         "benchmark": args.benchmark.upper(),
         "benchmark_instrument": benchmark_instrument,
