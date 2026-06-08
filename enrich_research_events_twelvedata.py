@@ -25,27 +25,52 @@ from typing import Iterable
 from zoneinfo import ZoneInfo
 
 
-DEFAULT_UNIVERSE = [
-    "NVDA",
-    "LITE",
-    "AAOI",
-    "AXTI",
-    "MSFT",
-    "INTC",
-    "AMZN",
-    "MRVL",
-    "TSM",
-    "AEHR",
-    "COHR",
-    "AMD",
-    "RDDT",
-    "POET",
-    "GOOGL",
-    "ARM",
-    "AVGO",
-    "SNDK",
-    "JBL",
-]
+DEFAULT_INSTRUMENTS = {
+    # First US/ADR batch.
+    "NVDA": {"symbol": "NVDA", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "NVIDIA Corporation"},
+    "LITE": {"symbol": "LITE", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Lumentum Holdings"},
+    "AAOI": {"symbol": "AAOI", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Applied Optoelectronics"},
+    "AXTI": {"symbol": "AXTI", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "AXT Inc"},
+    "MSFT": {"symbol": "MSFT", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Microsoft"},
+    "INTC": {"symbol": "INTC", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Intel"},
+    "AMZN": {"symbol": "AMZN", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Amazon"},
+    "MRVL": {"symbol": "MRVL", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Marvell Technology"},
+    "TSM": {"symbol": "TSM", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Taiwan Semiconductor ADR"},
+    "AEHR": {"symbol": "AEHR", "exchange": "NASDAQ", "mic_code": "XNCM", "country": "United States", "currency": "USD", "name": "Aehr Test Systems"},
+    "COHR": {"symbol": "COHR", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Coherent"},
+    "AMD": {"symbol": "AMD", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Advanced Micro Devices"},
+    "RDDT": {"symbol": "RDDT", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Reddit"},
+    "POET": {"symbol": "POET", "exchange": "NASDAQ", "mic_code": "XNCM", "country": "United States", "currency": "USD", "name": "POET Technologies"},
+    "GOOGL": {"symbol": "GOOGL", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Alphabet Class A"},
+    "ARM": {"symbol": "ARM", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Arm Holdings ADR"},
+    "AVGO": {"symbol": "AVGO", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Broadcom"},
+    "SNDK": {"symbol": "SNDK", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Sandisk"},
+    "JBL": {"symbol": "JBL", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Jabil"},
+    # Added from Twelve Data /stocks discovery for high-frequency uncovered events.
+    "SIVE": {"symbol": "SIVE", "exchange": "OMX", "mic_code": "XSTO", "country": "Sweden", "currency": "SEK", "name": "Sivers Semiconductors AB (publ)"},
+    "SIVEF": {"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC"},
+    "SOI": {"symbol": "SOI", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Soitec SA"},
+    "SLOIF": {"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"},
+    "RPI": {"symbol": "RPI", "exchange": "LSE", "mic_code": "XLON", "country": "United Kingdom", "currency": "GBp", "name": "Raspberry Pi Holdings plc"},
+    "TSEM": {"symbol": "TSEM", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Tower Semiconductor"},
+    "IQE": {"symbol": "IQE", "exchange": "LSE", "mic_code": "AIMX", "country": "United Kingdom", "currency": "GBp", "name": "IQE plc"},
+    "IREN": {"symbol": "IREN", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "IREN Limited"},
+    "NBIS": {"symbol": "NBIS", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Nebius Group"},
+    "SMTOY": {"symbol": "SMTOY", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sumitomo Electric ADR"},
+    "XFAB": {"symbol": "XFAB", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "X-FAB Silicon Foundries SE"},
+    "META": {"symbol": "META", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Meta Platforms"},
+    "TER": {"symbol": "TER", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Teradyne"},
+    "MU": {"symbol": "MU", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Micron Technology"},
+    "HOOD": {"symbol": "HOOD", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Robinhood Markets"},
+    "IBKR": {"symbol": "IBKR", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Interactive Brokers"},
+    "GFS": {"symbol": "GFS", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "GlobalFoundries"},
+    "LPK": {"symbol": "LPK", "exchange": "XETR", "mic_code": "XETR", "country": "Germany", "currency": "EUR", "name": "LPKF Laser & Electronics SE"},
+    "ALRIB": {"symbol": "ALRIB", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Riber SA"},
+    "HPS.A": {"symbol": "HPS.A", "exchange": "TSX", "mic_code": "XTSE", "country": "Canada", "currency": "CAD", "name": "Hammond Power Solutions"},
+    "NVTS": {"symbol": "NVTS", "exchange": "NASDAQ", "mic_code": "XNMS", "country": "United States", "currency": "USD", "name": "Navitas Semiconductor"},
+    "RKLB": {"symbol": "RKLB", "exchange": "NASDAQ", "mic_code": "XNCM", "country": "United States", "currency": "USD", "name": "Rocket Lab"},
+    "FLNC": {"symbol": "FLNC", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Fluence Energy"},
+}
 
 FORWARD_WINDOWS = [1, 5, 20, 60, 120]
 NY = ZoneInfo("America/New_York")
@@ -74,8 +99,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--symbols",
-        default=",".join(DEFAULT_UNIVERSE),
-        help="Comma-separated symbols to enrich. Defaults to the first validated US/ADR universe.",
+        default=",".join(DEFAULT_INSTRUMENTS),
+        help="Comma-separated event tickers to enrich. Defaults to the validated US/ADR + international universe.",
     )
     parser.add_argument(
         "--benchmark",
@@ -123,9 +148,20 @@ def parse_float(value: object) -> float | None:
     return number
 
 
-def twelve_data_url(symbol: str, start: date, end: date, api_key: str) -> str:
+def instrument_for_ticker(ticker: str) -> dict[str, str]:
+    ticker = ticker.strip().upper().lstrip("$")
+    if ticker in DEFAULT_INSTRUMENTS:
+        return dict(DEFAULT_INSTRUMENTS[ticker])
+    return {"symbol": ticker, "name": "", "exchange": "", "mic_code": "", "country": "", "currency": ""}
+
+
+def cache_name(value: str) -> str:
+    return "".join(char if char.isalnum() or char in {"_", "-"} else "_" for char in value)
+
+
+def twelve_data_url(instrument: dict[str, str], start: date, end: date, api_key: str) -> str:
     params = {
-        "symbol": symbol,
+        "symbol": instrument["symbol"],
         "interval": "1day",
         "start_date": start.isoformat(),
         "end_date": end.isoformat(),
@@ -133,11 +169,14 @@ def twelve_data_url(symbol: str, start: date, end: date, api_key: str) -> str:
         "format": "JSON",
         "outputsize": "5000",
     }
+    for key in ["exchange", "mic_code", "country"]:
+        if instrument.get(key):
+            params[key] = instrument[key]
     return "https://api.twelvedata.com/time_series?" + urllib.parse.urlencode(params)
 
 
-def fetch_bars(symbol: str, start: date, end: date, api_key: str) -> tuple[list[Bar], str]:
-    url = twelve_data_url(symbol, start, end, api_key)
+def fetch_bars(instrument: dict[str, str], start: date, end: date, api_key: str) -> tuple[list[Bar], str]:
+    url = twelve_data_url(instrument, start, end, api_key)
     request = urllib.request.Request(
         url,
         headers={
@@ -254,14 +293,21 @@ def enrich_row(
     row: dict[str, str],
     bars_by_symbol: dict[str, list[Bar]],
     benchmark_bars: list[Bar],
+    instruments_by_ticker: dict[str, dict[str, str]],
 ) -> dict[str, object]:
     enriched: dict[str, object] = dict(row)
     symbol = row.get("ticker", "").strip().upper().lstrip("$")
     event_time = parse_event_time(row.get("published_at_utc", "") or row.get("published_at", ""))
     bars = bars_by_symbol.get(symbol, [])
+    instrument = instruments_by_ticker.get(symbol, instrument_for_ticker(symbol))
 
     for key in [
         "price_data_symbol",
+        "price_data_name",
+        "price_data_exchange",
+        "price_data_mic_code",
+        "price_data_country",
+        "price_data_currency",
         "price_data_status",
         "entry_reference_date",
         "entry_reference_price",
@@ -290,7 +336,12 @@ def enrich_row(
 
     entry_bar = bars[entry_index]
     entry_price = entry_bar.close
-    enriched["price_data_symbol"] = symbol
+    enriched["price_data_symbol"] = instrument.get("symbol", symbol)
+    enriched["price_data_name"] = instrument.get("name", "")
+    enriched["price_data_exchange"] = instrument.get("exchange", "")
+    enriched["price_data_mic_code"] = instrument.get("mic_code", "")
+    enriched["price_data_country"] = instrument.get("country", "")
+    enriched["price_data_currency"] = instrument.get("currency", "")
     enriched["price_data_status"] = "ok"
     enriched["entry_reference_date"] = entry_bar.day.isoformat()
     enriched["entry_reference_price"] = round_or_blank(entry_price)
@@ -348,6 +399,10 @@ def main() -> int:
         for symbol in args.symbols.split(",")
         if symbol.strip()
     }
+    instruments_by_ticker = {
+        symbol: instrument_for_ticker(symbol)
+        for symbol in selected_symbols
+    }
     event_dates = [
         parse_event_time(row.get("published_at_utc", "") or row.get("published_at", ""))
         for row in events
@@ -364,19 +419,26 @@ def main() -> int:
     cache_dir = out_dir / "price_cache"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
-    symbols_to_fetch = sorted(selected_symbols | {args.benchmark.upper()})
+    symbols_to_fetch = sorted(selected_symbols)
     bars_by_symbol: dict[str, list[Bar]] = {}
     fetch_status: dict[str, str] = {}
-    for index, symbol in enumerate(symbols_to_fetch, start=1):
-        print(f"[{index}/{len(symbols_to_fetch)}] Fetching {symbol} from {start} to {end}")
-        bars, status = fetch_bars(symbol, start, end, api_key)
-        bars_by_symbol[symbol] = bars
-        fetch_status[symbol] = status
-        cache_path = cache_dir / f"{symbol}.json"
+    benchmark_instrument = instrument_for_ticker(args.benchmark.upper())
+    fetch_plan = [(symbol, instruments_by_ticker[symbol]) for symbol in symbols_to_fetch]
+    fetch_plan.append((args.benchmark.upper(), benchmark_instrument))
+    for index, (event_ticker, instrument) in enumerate(fetch_plan, start=1):
+        source = instrument.get("symbol", event_ticker)
+        exchange = instrument.get("exchange", "")
+        suffix = f" ({exchange})" if exchange else ""
+        print(f"[{index}/{len(fetch_plan)}] Fetching {event_ticker} -> {source}{suffix} from {start} to {end}")
+        bars, status = fetch_bars(instrument, start, end, api_key)
+        bars_by_symbol[event_ticker] = bars
+        fetch_status[event_ticker] = status
+        cache_path = cache_dir / f"{cache_name(event_ticker)}.json"
         cache_path.write_text(
             json.dumps(
                 {
-                    "symbol": symbol,
+                    "event_ticker": event_ticker,
+                    "instrument": instrument,
                     "status": status,
                     "start": start.isoformat(),
                     "end": end.isoformat(),
@@ -387,12 +449,12 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
-        if index < len(symbols_to_fetch) and args.sleep > 0:
+        if index < len(fetch_plan) and args.sleep > 0:
             time.sleep(args.sleep)
 
     benchmark_bars = bars_by_symbol.get(args.benchmark.upper(), [])
     enriched_rows = [
-        enrich_row(row, bars_by_symbol, benchmark_bars)
+        enrich_row(row, bars_by_symbol, benchmark_bars, instruments_by_ticker)
         for row in events
         if row.get("ticker", "").strip().upper().lstrip("$") in selected_symbols
         and row.get("research_signal", "").strip().lower() in {"yes", "maybe"}
@@ -401,6 +463,11 @@ def main() -> int:
     original_fields = list(events[0].keys()) if events else []
     extra_fields = [
         "price_data_symbol",
+        "price_data_name",
+        "price_data_exchange",
+        "price_data_mic_code",
+        "price_data_country",
+        "price_data_currency",
         "price_data_status",
         "entry_reference_date",
         "entry_reference_price",
@@ -424,7 +491,12 @@ def main() -> int:
         "input_events_csv": str(events_path),
         "output_csv": str(out_dir / "01_research_events_enriched_twelvedata.csv"),
         "selected_symbols": sorted(selected_symbols),
+        "selected_instruments": {
+            symbol: instruments_by_ticker[symbol]
+            for symbol in sorted(instruments_by_ticker)
+        },
         "benchmark": args.benchmark.upper(),
+        "benchmark_instrument": benchmark_instrument,
         "event_rows_written": len(enriched_rows),
         "rows_with_price_data": ok_rows,
         "price_start": start.isoformat(),
