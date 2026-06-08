@@ -48,7 +48,7 @@ DEFAULT_INSTRUMENTS = {
     "SNDK": {"symbol": "SNDK", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Sandisk"},
     "JBL": {"symbol": "JBL", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Jabil"},
     # Added from Twelve Data /stocks discovery for high-frequency uncovered events.
-    "SIVE": {"symbol": "SIVE", "exchange": "OMX", "mic_code": "XSTO", "country": "Sweden", "currency": "SEK", "name": "Sivers Semiconductors AB (publ)", "fallbacks": [{"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC"}]},
+    "SIVE": {"symbol": "2DG", "exchange": "XSTU", "mic_code": "XSTU", "country": "Germany", "currency": "EUR", "name": "Sivers Semiconductors AB (publ)"},
     "SIVEF": {"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC"},
     "SOI": {"symbol": "SOI", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Soitec SA", "allow_symbol_only": "false", "fallbacks": [{"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"}]},
     "SLOIF": {"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"},
@@ -87,6 +87,23 @@ class Bar:
     volume: float | None = None
 
 
+class RateLimiter:
+    def __init__(self, min_interval_seconds: float) -> None:
+        self.min_interval_seconds = max(0.0, min_interval_seconds)
+        self.last_request_at: float | None = None
+
+    def wait(self) -> None:
+        if self.min_interval_seconds <= 0:
+            return
+        now = time.monotonic()
+        if self.last_request_at is not None:
+            elapsed = now - self.last_request_at
+            delay = self.min_interval_seconds - elapsed
+            if delay > 0:
+                time.sleep(delay)
+        self.last_request_at = time.monotonic()
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -111,8 +128,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--sleep",
         type=float,
-        default=8.0,
-        help="Seconds to sleep between Twelve Data requests. Keep conservative for free plans.",
+        default=9.0,
+        help="Minimum seconds between Twelve Data requests. Free plans allow 8 requests/minute, so use 8+.",
+    )
+    parser.add_argument(
+        "--retry-429-wait",
+        type=float,
+        default=65.0,
+        help="Seconds to wait before retrying once after Twelve Data returns HTTP 429.",
+    )
+    parser.add_argument(
+        "--retry-429-attempts",
+        type=int,
+        default=1,
+        help="Number of retries after HTTP 429 for each candidate instrument.",
     )
     parser.add_argument(
         "--api-key-env",
@@ -278,14 +307,46 @@ def fetch_bars_once(instrument: dict[str, str], start: date, end: date, api_key:
     return bars, "ok" if bars else "no_parseable_bars"
 
 
-def fetch_bars(instrument: dict[str, object], start: date, end: date, api_key: str) -> tuple[list[Bar], str, dict[str, str]]:
+def is_rate_limited(status: str) -> bool:
+    return "HTTPError:429" in status or '"code":429' in status
+
+
+def is_plan_required(status: str) -> bool:
+    lowered = status.lower()
+    return "available starting with the grow or venture plan" in lowered or "consider upgrading" in lowered
+
+
+def fetch_bars(
+    instrument: dict[str, object],
+    start: date,
+    end: date,
+    api_key: str,
+    limiter: RateLimiter,
+    retry_429_wait: float,
+    retry_429_attempts: int,
+) -> tuple[list[Bar], str, dict[str, str]]:
     statuses: list[str] = []
+    plan_blocked_symbols: set[str] = set()
     for candidate in candidate_instruments(instrument):
-        bars, status = fetch_bars_once(candidate, start, end, api_key)
+        candidate_symbol = candidate.get("symbol", "")
+        if candidate_symbol in plan_blocked_symbols:
+            continue
         label = f"{candidate.get('symbol')}:{candidate.get('exchange') or candidate.get('mic_code') or 'symbol_only'}"
-        statuses.append(f"{label}={status}")
-        if bars:
-            return bars, "ok" if status == "ok" else status, candidate
+        for attempt in range(max(0, retry_429_attempts) + 1):
+            limiter.wait()
+            bars, status = fetch_bars_once(candidate, start, end, api_key)
+            statuses.append(f"{label}={status}")
+            if bars:
+                return bars, "ok" if status == "ok" else status, candidate
+            if is_plan_required(status):
+                plan_blocked_symbols.add(candidate_symbol)
+                break
+            if is_rate_limited(status) and attempt < retry_429_attempts:
+                time.sleep(max(0.0, retry_429_wait))
+                continue
+            if is_rate_limited(status):
+                return [], " | ".join(statuses), candidate
+            break
     return [], " | ".join(statuses) if statuses else "no_candidates", public_instrument(instrument)
 
 
@@ -479,6 +540,7 @@ def main() -> int:
     bars_by_symbol: dict[str, list[Bar]] = {}
     used_instruments_by_ticker: dict[str, dict[str, str]] = {}
     fetch_status: dict[str, str] = {}
+    limiter = RateLimiter(args.sleep)
     benchmark_instrument = instrument_for_ticker(args.benchmark.upper())
     fetch_plan = [(symbol, instruments_by_ticker[symbol]) for symbol in symbols_to_fetch]
     fetch_plan.append((args.benchmark.upper(), benchmark_instrument))
@@ -487,7 +549,15 @@ def main() -> int:
         exchange = instrument.get("exchange", "")
         suffix = f" ({exchange})" if exchange else ""
         print(f"[{index}/{len(fetch_plan)}] Fetching {event_ticker} -> {source}{suffix} from {start} to {end}")
-        bars, status, used_instrument = fetch_bars(instrument, start, end, api_key)
+        bars, status, used_instrument = fetch_bars(
+            instrument,
+            start,
+            end,
+            api_key,
+            limiter,
+            args.retry_429_wait,
+            args.retry_429_attempts,
+        )
         bars_by_symbol[event_ticker] = bars
         used_instruments_by_ticker[event_ticker] = used_instrument
         fetch_status[event_ticker] = status
@@ -508,8 +578,6 @@ def main() -> int:
             ),
             encoding="utf-8",
         )
-        if index < len(fetch_plan) and args.sleep > 0:
-            time.sleep(args.sleep)
 
     benchmark_bars = bars_by_symbol.get(args.benchmark.upper(), [])
     enriched_rows = [
