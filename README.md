@@ -1,8 +1,8 @@
-# Tweet Distiller Snapshot
+# Research Event Distiller
 
 ## 中文说明
 
-Tweet Distiller Snapshot 是一个把公开 X/Twitter 发言转成**可证伪投资研究数据集**，并进一步沉淀为 **Codex skill** 的开源工程。
+Research Event Distiller 是一个把公开 X/Twitter 发言转成**可证伪投资研究数据集**，并进一步沉淀为 **Codex skill** 的开源工程。
 
 它最初是一个“单次抓取某位发布者截至当前可见推文”的 GitHub Actions 工具。后来扩展成完整流水线：
 
@@ -212,7 +212,7 @@ Secrets：
 
 ## English Overview
 
-Tweet Distiller Snapshot is an end-to-end public research pipeline for turning an X/Twitter author's public posts into a falsifiable investment research dataset and, finally, a reusable Codex skill.
+Research Event Distiller is an end-to-end public research pipeline for turning an X/Twitter author's public posts into a falsifiable investment research dataset and, finally, a reusable Codex skill.
 
 The project covers the full workflow:
 
