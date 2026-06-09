@@ -81,16 +81,15 @@ skills/serenity-research-analyst/ # 从本项目沉淀出的 Codex skill
 docs/PROJECT_OVERVIEW.md          # 面向公开展示的项目总览
 ```
 
-## 运行产物
+## 主要产物
 
-为保持仓库轻量，生成型数据集、价格缓存、人工复核队列、zip 包和历史中间产物不再长期保留在源码仓库中。运行 GitHub Actions 或本地脚本后，会生成类似结构：
+核心结果位于：
 
 ```text
-research_events/
 enriched-research-events/research_events/
 ```
 
-常见产物包括：
+重要文件包括：
 
 - `enriched/01_research_events_enriched_twelvedata.csv`  
   主研究数据集，包含事件级市场富集。
@@ -119,9 +118,9 @@ enriched-research-events/research_events/
 - `analysis/07_skill_trial_report.md`  
   skill 测试报告。
 
-## 当前示例数据集快照
+## 当前数据集快照
 
-以下是本项目构建过程中的 Serenity 示例数据集结果，用于说明方法效果；完整生成产物可通过对应 GitHub Actions artifact、release/archive 或本地重新运行获得。
+在当前 Serenity 数据集中：
 
 - 从公开推文中生成了 2,026 条结构化 research events。
 - 最新公开 artifact 中有 600 行富集事件。
@@ -202,25 +201,6 @@ Secrets：
 | `TWELVEDATA_API_KEY` | Twelve Data 股票价格富集。 |
 | `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | 可选，旧版 Alpaca 富集脚本支持。 |
 
-## 发布版仓库内容
-
-当前仓库保留：
-
-- 源码脚本；
-- GitHub Actions workflow；
-- Codex skill；
-- 方法论文档；
-- 项目说明。
-
-当前仓库不长期保留：
-
-- 推文原始抓取结果；
-- research events CSV/JSONL；
-- 价格缓存；
-- 人工复核中间表；
-- 压缩包 artifact；
-- Python 缓存。
-
 ## 注意事项
 
 - 本仓库用于公开、非保密研究。
@@ -295,8 +275,6 @@ This method can also be generalized to other industries such as power grid equip
 - X/Twitter scraping is unstable and subject to platform rules, account status, rate limits, and local law.
 - Market-data free tiers can have coverage gaps, rate limits, stale prices, and proxy-symbol limitations.
 - Nothing in this repository is investment advice. Outputs are research hypotheses and audit tools.
-
-Generated datasets, price caches, manual-review queues, zip artifacts, and other intermediate outputs are intentionally not kept in the source repository. Recreate them through GitHub Actions or local scripts, or retrieve archived artifacts from the relevant run/release.
 
 ## Project Status
 
