@@ -48,7 +48,7 @@ DEFAULT_INSTRUMENTS = {
     "SNDK": {"symbol": "SNDK", "exchange": "NASDAQ", "mic_code": "XNGS", "country": "United States", "currency": "USD", "name": "Sandisk"},
     "JBL": {"symbol": "JBL", "exchange": "NYSE", "mic_code": "XNYS", "country": "United States", "currency": "USD", "name": "Jabil"},
     # Added from Twelve Data /stocks discovery for high-frequency uncovered events.
-    "SIVE": {"symbol": "2DG", "exchange": "XSTU", "mic_code": "XSTU", "country": "Germany", "currency": "EUR", "name": "Sivers Semiconductors AB (publ)"},
+    "SIVE": {"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC proxy for SIVE"},
     "SIVEF": {"symbol": "SIVEF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Sivers Semiconductors AB (publ) OTC"},
     "SOI": {"symbol": "SOI", "exchange": "Euronext", "mic_code": "XPAR", "country": "France", "currency": "EUR", "name": "Soitec SA", "allow_symbol_only": "false", "fallbacks": [{"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"}]},
     "SLOIF": {"symbol": "SLOIF", "exchange": "OTC", "mic_code": "PINX", "country": "United States", "currency": "USD", "name": "Soitec SA OTC"},
