@@ -1,100 +1,199 @@
 # Tweet Distiller Snapshot
 
-一次性抓取指定 X/Twitter 发布者截至当前可见推文，并导出为适合后续“人格/观点/写作风格蒸馏”的数据包。
+Tweet Distiller Snapshot is an end-to-end public research pipeline for turning an X/Twitter author's public posts into a falsifiable investment research dataset and, finally, a reusable Codex skill.
 
-这个项目按公开 GitHub 仓库设计：代码、说明、工作流都可以公开；运行用的 X/Twitter cookie 请放在 GitHub Secrets，不要写入仓库。
-
-## 适用场景
-
-- 单次抓取一个或多个账号的近期可见推文。
-- 不在本机运行，使用 GitHub Actions 云端 runner。
-- 输出 JSONL、CSV、Markdown 语料和蒸馏提示词模板。
-- 结果作为 GitHub Actions artifact 下载。
-
-## 现实限制
-
-- 本项目使用 `twscrape`，它依赖已登录的 X/Twitter 账号 cookie。
-- `twscrape` README 说明 `user_tweets` 和 `user_tweets_and_replies` 通常最多约 3200 条，实际数量取决于 X/Twitter 当前接口、账号状态和限流。
-- X/Twitter 抓取存在不稳定性，请控制频率，并遵守平台条款和所在地法律法规。
-- 公开仓库的 artifact 和运行日志应视为公开可见；如果结果不宜公开，请改用私有仓库或不要上传 artifact。
-
-## 第一次配置
-
-1. 新建一个公开 GitHub 仓库。
-2. 上传本目录里的所有文件。
-3. 打开仓库的 `Settings -> Secrets and variables -> Actions -> New repository secret`。
-4. 添加以下 Secret：
-
-| Secret | 必填 | 说明 |
-| --- | --- | --- |
-| `TWS_USERNAME` | 否 | twscrape 数据库里的账号标签，可填你的 X 用户名，也可填 `x_account` |
-| `TWS_COOKIES` | 是 | 浏览器里的 X cookie，格式如 `auth_token=xxx; ct0=yyy` |
-| `TWS_PROXY` | 否 | 如需代理，填 `http://user:pass@host:port` 或 `socks5://...` |
-
-获取 cookie 的常见方式：
-
-1. 在浏览器登录 `https://x.com`。
-2. 打开开发者工具。
-3. 找到 `Application / Storage -> Cookies -> https://x.com`。
-4. 复制 `auth_token` 和 `ct0`，拼成：
+The project covers the full workflow:
 
 ```text
-auth_token=你的值; ct0=你的值
+public tweets
+  -> clean corpus
+  -> structured research events
+  -> market-data enrichment
+  -> forward-return / drawdown audit
+  -> manual review
+  -> reusable investment-research skill
 ```
 
-## 手动运行
+It is designed to run for free or near-free through GitHub Actions and free market-data tiers. Secrets such as X/Twitter cookies and market-data API keys must be stored in GitHub Actions Secrets, never committed to the repository.
 
-1. 打开 GitHub 仓库的 `Actions`。
-2. 选择 `Scrape X/Twitter snapshot`。
-3. 点击 `Run workflow`。
-4. 填写：
+## Why This Exists
 
-| 输入项 | 示例 | 说明 |
-| --- | --- | --- |
-| `handles` | `sama,paulg` | 账号名，不需要 `@`，多个用逗号或换行分隔 |
-| `limit` | `3200` | 每个账号最多尝试抓取多少条 |
-| `include_replies` | `false` | 是否包含回复 |
-| `original_only` | `true` | 是否只导出原创推文；开启后会排除回复、转推和引用推文 |
+Most "distill a great investor" workflows stop at summaries: themes, quotes, writing style, and favorite tickers. That is useful, but it is not enough for investment research.
 
-运行结束后，在 workflow run 页面下载 `tweet-distiller-snapshot` artifact。
+This project makes the claims auditable:
 
-## 输出文件
+- Every public expression becomes a timestamped research event.
+- Each event can be tied to tickers, claim type, evidence type, and target role.
+- Market prices are aligned to the event timestamp.
+- Forward returns, drawdowns, runups, and benchmark-relative excess returns are measured.
+- Strong patterns are separated from weak themes, duplicate tweets, and after-the-fact explanations.
+- The final skill learns a research method, not a ticker list.
 
-artifact 内部结构类似：
+## What Is Innovative
+
+The core innovation is the bridge between qualitative investor writing and falsifiable research events.
+
+Instead of asking:
+
+> What does this author believe?
+
+this project asks:
+
+> Which timestamped public claims survived price-path audit, benchmark comparison, and manual review, and what reusable research logic do they imply?
+
+In the Serenity AI/semi dataset, the most useful lesson was not "buy a specific ticker." It was a method:
 
 ```text
-out/
-├─ tweets.jsonl
-├─ tweets.csv
-├─ corpus.md
-├─ profile_prompt.md
-└─ summary.json
+AI demand shock
+  -> constrained infrastructure layer
+  -> scarce technical capability
+  -> underpriced beneficiary
+  -> evidence stack
+  -> signal-stage classification
+  -> benchmark-relative audit
 ```
 
-- `tweets.jsonl`：完整结构化数据，一行一条。
-- `tweets.csv`：常用字段表格，适合粗看和筛选。
-- `corpus.md`：按账号整理的纯文本语料。
-- `profile_prompt.md`：用于让大模型分析发布者风格、主题、观点和表达模式的提示词模板。
-- `summary.json`：本次运行的账号、数量、时间和错误信息。
+This method can also be generalized to other industries such as power grid equipment, defense, CDMO, industrial automation, energy infrastructure, and consumer hardware supply chains.
 
-## 本地测试
+## Repository Contents
 
-如果要在本地小样本测试：
+```text
+.github/workflows/
+  scrape.yml                    # GitHub Actions workflow for X/Twitter snapshot scraping
+  enrich-research-events.yml     # Workflow for research-event preparation and market-data enrichment
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-export TWS_COOKIES='auth_token=xxx; ct0=yyy'
-python scrape.py --handles sama --limit 20 --original-only
+scrape.py                        # One-time X/Twitter snapshot scraper using twscrape
+prepare_distill_pack.py          # Builds corpus, prompt, topic candidates, and evidence index
+prepare_research_events.py       # Converts posts into structured investment research events
+enrich_research_events_twelvedata.py
+                                 # Adds prices, forward returns, drawdown, runup, benchmark returns
+analyze_research_events.py       # Builds grouped backtest summaries and skill candidates
+make_manual_review_queue.py      # Creates a manual chart-review queue
+
+skills/serenity-research-analyst/ # Codex skill distilled from the research process
+docs/                            # Project-level explanation and publication notes
 ```
 
-Windows PowerShell：
+## Main Outputs
+
+Important generated artifacts live under `enriched-research-events/research_events/`.
+
+Key outputs include:
+
+- `enriched/01_research_events_enriched_twelvedata.csv`: event-level dataset with market enrichment.
+- `analysis/01_backtest_summary.md`: group-level performance summary.
+- `analysis/02_skill_candidates.md`: candidate rules, weak patterns, and contra-signals.
+- `analysis/03_manual_review_v1.md`: human chart-review queue.
+- `analysis/manual_review_labels.csv`: manual review labels.
+- `analysis/04_serenity_bottleneck_methodology.md`: AI infrastructure bottleneck methodology.
+- `analysis/05_skill_trial_ai_infra_map_v1.md`: skill trial output.
+- `analysis/06_skill_trial_cross_industry_power_grid.md`: cross-industry generalization test.
+- `analysis/07_skill_trial_report.md`: skill trial report.
+
+## Result Snapshot
+
+In the current enriched Serenity dataset:
+
+- 2,026 structured research events were created from public tweets.
+- 600 rows were enriched in the latest public artifact.
+- 554 rows had usable price data.
+- SIVE was priced through the free-data proxy `SIVEF`.
+- The strongest reusable evidence pattern was `customer;supply_chain;earnings;rumor`.
+
+Selected findings:
+
+| Pattern | Evidence |
+| --- | --- |
+| `SIVE` / `SIVEF` | Strong forward performance, manually reviewed as continuation confirmation rather than early-bottom discovery. |
+| `AEHR` | Strong cluster, but requires duplicate/thread clustering before treating sample size as independent. |
+| `customer;supply_chain;earnings;rumor` | Strongest reusable evidence-stack pattern in the dataset. |
+| Broad `ai_networking_optics` | Weak as a broad theme despite strong sub-bottlenecks; this prevents naive theme-following. |
+| Large-cap/context names | Often useful as demand validation, not direct alpha signals. |
+
+## The Codex Skill
+
+The distilled skill is in:
+
+```text
+skills/serenity-research-analyst/
+```
+
+It teaches Codex to:
+
+- analyze timestamped investment research events;
+- separate narrative logic, signal logic, and risk logic;
+- identify AI infrastructure bottlenecks and underpriced beneficiaries;
+- classify events as early discovery, continuation confirmation, late validation, after-fact commentary, or context-only;
+- generalize the bottleneck method to other industries;
+- avoid overfitting to tickers, broad themes, and duplicate tweet rows.
+
+To install locally:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-$env:TWS_COOKIES='auth_token=xxx; ct0=yyy'
-python scrape.py --handles sama --limit 20 --original-only
+Copy-Item -Recurse -Force `
+  -LiteralPath ".\skills\serenity-research-analyst" `
+  -Destination "$env:USERPROFILE\.codex\skills\serenity-research-analyst"
 ```
+
+Restart Codex after installation if the skill list does not refresh automatically.
+
+## GitHub Actions Usage
+
+### 1. Scrape Public Tweets
+
+Open `Actions -> Scrape X/Twitter snapshot -> Run workflow`.
+
+Inputs:
+
+| Input | Example | Notes |
+| --- | --- | --- |
+| `handles` | `aleabitoreddit` | X/Twitter handles without `@`. |
+| `limit` | `3200` | X/Twitter/twscrape commonly caps user timelines around this level. |
+| `include_replies` | `false` | Whether to include replies. |
+| `original_only` | `true` | Exclude replies, reposts, and quote tweets where possible. |
+
+Required secret:
+
+| Secret | Required | Notes |
+| --- | --- | --- |
+| `TWS_COOKIES` | Yes | X/Twitter cookies, usually `auth_token=...; ct0=...`. |
+| `TWS_USERNAME` | No | Account label for twscrape. |
+| `TWS_PROXY` | No | Optional proxy. |
+
+### 2. Build And Enrich Research Events
+
+Open `Actions -> Enrich research events -> Run workflow`.
+
+This workflow can prepare structured research events and enrich them with market data. The Twelve Data free tier has strict rate limits, so the workflow includes pacing controls. Use GitHub Secrets for API keys.
+
+Common secrets:
+
+| Secret | Required | Notes |
+| --- | --- | --- |
+| `TWELVEDATA_API_KEY` | For Twelve Data enrichment | Used for stock price enrichment. |
+| `ALPACA_API_KEY` / `ALPACA_SECRET_KEY` | Optional | Supported by older enrichment script if you have keys. |
+
+## Data And Compliance Notes
+
+- This repository is intended for public, non-confidential research.
+- Do not commit X/Twitter cookies, API keys, local databases, `.env` files, or twscrape state.
+- Public GitHub Actions artifacts and logs should be treated as public.
+- X/Twitter scraping is unstable and subject to platform rules, account status, rate limits, and local law.
+- Market-data free tiers can have coverage gaps, rate limits, stale prices, and proxy-symbol limitations.
+- Nothing in this repository is investment advice. Outputs are research hypotheses and audit tools.
+
+## Project Status
+
+Current status:
+
+- Snapshot scraping works through GitHub Actions.
+- Research-event conversion works.
+- Twelve Data enrichment works with free-tier pacing and proxy mappings.
+- Analysis and manual-review queue generation work.
+- `serenity-research-analyst` skill has been created, trialed, and locally installable.
+
+Recommended next step:
+
+1. Run another public-author dataset through the same pipeline.
+2. Compare whether the bottleneck framework generalizes.
+3. Keep adding manual review labels before treating any pattern as durable.
