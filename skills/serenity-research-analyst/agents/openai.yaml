@@ -1,0 +1,3 @@
+display_name: Serenity Research Analyst
+short_description: Distill AI/semi research signals
+default_prompt: Analyze enriched Serenity research events and extract evidence-backed investment research patterns, weak hypotheses, and failure modes.
